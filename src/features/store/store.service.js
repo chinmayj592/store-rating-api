@@ -1,51 +1,94 @@
 const prisma = require('../../config/database');
-const AppError = require('../../utils/AppError');
-const { getPagination, paginateMeta } = require('../../utils/pagination');
-const { getSorting } = require('../../utils/sorting');
-const { buildFilter } = require('../../utils/filtering');
+const { buildWhereClause } = require('../../utils/filtering');
+const { getSortOrder } = require('../../utils/sorting');
+const { getPagination } = require('../../utils/pagination');
 
-const ALLOWED_SORT = ['name', 'createdAt'];
-const SELECT = {
-  id: true, name: true, email: true, address: true, ownerId: true,
-  ratings: { select: { value: true } },
-};
-
-const withAvgRating = (stores) =>
-  stores.map(({ ratings, ...s }) => ({
-    ...s,
-    avgRating: ratings.length ? ratings.reduce((a, r) => a + r.value, 0) / ratings.length : null,
-  }));
-
-const listStores = async (query) => {
+const listStores = async (query, userId = null) => {
   const { skip, take, page, limit } = getPagination(query);
-  const where = buildFilter(query, ['name', 'address']);
+  const allowedFilters = ['name', 'address'];
+  const where = buildWhereClause(query, allowedFilters);
+  if (query.email) {
+    where.email = { contains: query.email };
+  }
 
-  const [stores, total] = await Promise.all([
-    prisma.store.findMany({ where, select: SELECT, skip, take, orderBy: getSorting(query, ALLOWED_SORT) }),
-    prisma.store.count({ where }),
-  ]);
-  return { stores: withAvgRating(stores), meta: paginateMeta(total, page, limit) };
+  const orderBy = getSortOrder(query, 'store');
+
+  const stores = await prisma.store.findMany({
+    where,
+    orderBy,
+    skip,
+    take,
+    include: {
+      ratings: {
+        select: { rating: true, userId: true },
+      },
+    },
+  });
+
+  const total = await prisma.store.count({ where });
+
+  const storeList = stores.map((store) => {
+    const avgRating =
+        store.ratings.length > 0
+            ? store.ratings.reduce((sum, r) => sum + r.rating, 0) /
+            store.ratings.length
+            : 0;
+
+    let userRating = null;
+    if (userId) {
+      const userRatingEntry = store.ratings.find((r) => r.userId === userId);
+      userRating = userRatingEntry ? userRatingEntry.rating : null;
+    }
+
+    return {
+      id: store.id,
+      name: store.name,
+      email: store.email,
+      address: store.address,
+      averageRating: parseFloat(avgRating.toFixed(2)),
+      userRating, // only for authenticated USER
+    };
+  });
+
+  const pagination = {
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+  };
+
+  return { stores: storeList, pagination };
 };
 
-const getStoreById = async (id) => {
-  const store = await prisma.store.findUnique({ where: { id: Number(id) }, select: SELECT });
+const getStoreById = async (storeId, userId) => {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    include: {
+      ratings: true,
+    },
+  });
   if (!store) throw new AppError('Store not found', 404);
-  const [{ ratings, ...s }] = withAvgRating([store]);
-  return s;
+
+  const avgRating =
+      store.ratings.length > 0
+          ? store.ratings.reduce((sum, r) => sum + r.rating, 0) /
+          store.ratings.length
+          : 0;
+
+  let userRating = null;
+  if (userId) {
+    const entry = store.ratings.find((r) => r.userId === userId);
+    userRating = entry ? entry.rating : null;
+  }
+
+  return {
+    id: store.id,
+    name: store.name,
+    email: store.email,
+    address: store.address,
+    averageRating: parseFloat(avgRating.toFixed(2)),
+    userRating,
+  };
 };
 
-const createStore = async (data) => prisma.store.create({ data, select: { id: true, name: true, email: true, address: true } });
-
-const updateStore = async (id, data) => {
-  const store = await prisma.store.findUnique({ where: { id: Number(id) } });
-  if (!store) throw new AppError('Store not found', 404);
-  return prisma.store.update({ where: { id: Number(id) }, data, select: { id: true, name: true, email: true, address: true } });
-};
-
-const deleteStore = async (id) => {
-  const store = await prisma.store.findUnique({ where: { id: Number(id) } });
-  if (!store) throw new AppError('Store not found', 404);
-  await prisma.store.delete({ where: { id: Number(id) } });
-};
-
-module.exports = { listStores, getStoreById, createStore, updateStore, deleteStore };
+module.exports = { listStores, getStoreById };

@@ -1,26 +1,18 @@
 const storeService = require('./store.service');
-const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../middleware/asyncHandler');
+const ApiResponse = require('../../utils/ApiResponse');
 
-const listStores = asyncHandler(async (req, res) => {
-  ApiResponse.success(res, await storeService.listStores(req.query));
+const getStores = asyncHandler(async (req, res) => {
+  const userId = req.user ? req.user.id : null; // might be used by admin too
+  const result = await storeService.listStores(req.query, userId);
+  return ApiResponse.paginated(result.stores, result.pagination)(req, res);
 });
 
-const getStoreById = asyncHandler(async (req, res) => {
-  ApiResponse.success(res, await storeService.getStoreById(req.params.id));
+const getStore = asyncHandler(async (req, res) => {
+  const storeId = parseInt(req.params.id, 10);
+  const userId = req.user ? req.user.id : null;
+  const store = await storeService.getStoreById(storeId, userId);
+  return ApiResponse.success(store)(req, res);
 });
 
-const createStore = asyncHandler(async (req, res) => {
-  ApiResponse.created(res, await storeService.createStore(req.body), 'Store created');
-});
-
-const updateStore = asyncHandler(async (req, res) => {
-  ApiResponse.success(res, await storeService.updateStore(req.params.id, req.body), 'Store updated');
-});
-
-const deleteStore = asyncHandler(async (req, res) => {
-  await storeService.deleteStore(req.params.id);
-  ApiResponse.success(res, null, 'Store deleted');
-});
-
-module.exports = { listStores, getStoreById, createStore, updateStore, deleteStore };
+module.exports = { getStores, getStore };

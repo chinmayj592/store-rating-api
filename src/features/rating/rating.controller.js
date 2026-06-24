@@ -1,20 +1,25 @@
 const ratingService = require('./rating.service');
-const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../middleware/asyncHandler');
+const ApiResponse = require('../../utils/ApiResponse');
 
-const submitRating = asyncHandler(async (req, res) => {
-  const result = await ratingService.submitRating(req.user.id, req.body);
-  ApiResponse.created(res, result, 'Rating submitted');
+const createRating = asyncHandler(async (req, res) => {
+  const storeId = parseInt(req.params.storeId, 10);
+  const rating = await ratingService.submitRating(
+      storeId,
+      req.user.id,
+      req.body.rating
+  );
+  return ApiResponse.success(rating, 'Rating submitted', 201)(req, res);
 });
 
-const getUserRatingForStore = asyncHandler(async (req, res) => {
-  const result = await ratingService.getUserRatingForStore(req.user.id, req.params.storeId);
-  ApiResponse.success(res, result);
+const updateRating = asyncHandler(async (req, res) => {
+  const ratingId = parseInt(req.params.ratingId, 10);
+  const rating = await ratingService.modifyRating(
+      ratingId,
+      req.user.id,
+      req.body.rating
+  );
+  return ApiResponse.success(rating, 'Rating updated')(req, res);
 });
 
-const deleteRating = asyncHandler(async (req, res) => {
-  await ratingService.deleteRating(req.user.id, req.params.storeId);
-  ApiResponse.success(res, null, 'Rating deleted');
-});
-
-module.exports = { submitRating, getUserRatingForStore, deleteRating };
+module.exports = { createRating, updateRating };
