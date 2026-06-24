@@ -1,9 +1,10 @@
 const storeOwnerService = require('./store-owner.service');
-const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../middleware/asyncHandler');
+const ApiResponse = require('../../utils/ApiResponse');
 
-const getDashboard = asyncHandler(async (req, res) => {
-  ApiResponse.success(res, await storeOwnerService.getOwnerDashboard(req.user.id));
+const dashboard = asyncHandler(async (req, res) => {
+  const data = await storeOwnerService.getDashboard(req.user.id);
+  return ApiResponse.success(data)(req, res);
 });
 
-module.exports = { getDashboard };
+module.exports = { dashboard };
