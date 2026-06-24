@@ -1,23 +1,50 @@
 const prisma = require('../../config/database');
 const AppError = require('../../utils/AppError');
+const { getPagination } = require('../../utils/pagination');
 
-const getOwnerDashboard = async (ownerId) => {
-  const store = await prisma.store.findFirst({
+const getDashboard = async (ownerId) => {
+  // Find the store owned by this store owner
+  const store = await prisma.store.findUnique({
     where: { ownerId },
     include: {
       ratings: {
-        select: { value: true, user: { select: { id: true, name: true, email: true } }, createdAt: true },
-        orderBy: { createdAt: 'desc' },
+        select: { rating: true, userId: true, user: { select: { name: true, email: true } } },
       },
     },
   });
-  if (!store) throw new AppError('No store found for this owner', 404);
 
-  const avgRating = store.ratings.length
-    ? store.ratings.reduce((a, r) => a + r.value, 0) / store.ratings.length
-    : null;
+  if (!store) {
+    // Store owner without a store yet
+    return {
+      store: null,
+      averageRating: 0,
+      ratings: [],
+      usersWhoRated: [],
+    };
+  }
 
-  return { store: { id: store.id, name: store.name, email: store.email, address: store.address }, avgRating, ratings: store.ratings };
+  const avgRating =
+      store.ratings.length > 0
+          ? store.ratings.reduce((sum, r) => sum + r.rating, 0) / store.ratings.length
+          : 0;
+
+  const usersWhoRated = store.ratings.map((r) => ({
+    userId: r.userId,
+    name: r.user.name,
+    email: r.user.email,
+    rating: r.rating,
+  }));
+
+  return {
+    store: {
+      id: store.id,
+      name: store.name,
+      email: store.email,
+      address: store.address,
+    },
+    averageRating: parseFloat(avgRating.toFixed(2)),
+    usersWhoRated,
+  };
 };
 
-module.exports = { getOwnerDashboard };
+module.exports = { getDashboard };
