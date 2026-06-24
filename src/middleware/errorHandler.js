@@ -1,12 +1,24 @@
-const { NODE_ENV } = require('../config/env');
+const AppError = require('../utils/AppError');
 
-// eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
-  const status = err.statusCode || 500;
-  res.status(status).json({
+  let { statusCode = 500, message } = err;
+
+  // Prisma known errors
+  if (err.code === 'P2002') {
+    statusCode = 409;
+    message = 'Duplicate field value entered';
+  } else if (err.code === 'P2025') {
+    statusCode = 404;
+    message = 'Record not found';
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    console.error(err);
+  }
+
+  res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
-    ...(NODE_ENV === 'development' && { stack: err.stack }),
+    message: message || 'Internal Server Error',
   });
 };
 
