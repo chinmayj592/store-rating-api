@@ -1,12 +1,9 @@
-// This is your Prisma schema file
-// Learn more: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -21,12 +18,12 @@ model User {
   name      String
   email     String   @unique
   password  String
-  address   String?
+  address   String
   role      Role     @default(USER)
+  ratings   Rating[]
+  store     Store? // a store owner can own one store
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  ratings   Rating[]
-  stores    Store[]
 }
 
 model Store {
@@ -34,20 +31,20 @@ model Store {
   name      String
   email     String   @unique
   address   String
-  ownerId   Int?
+  ownerId   Int?     @unique
   owner     User?    @relation(fields: [ownerId], references: [id])
+  ratings   Rating[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  ratings   Rating[]
 }
 
 model Rating {
   id        Int      @id @default(autoincrement())
-  value     Int
+  rating    Int // 1-5, validated at app level
   userId    Int
   storeId   Int
-  user      User     @relation(fields: [userId], references: [id])
-  store     Store    @relation(fields: [storeId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
