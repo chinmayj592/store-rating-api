@@ -1,10 +1,23 @@
 class ApiResponse {
-  static success(res, data = null, message = 'Success', statusCode = 200) {
-    return res.status(statusCode).json({ success: true, message, data });
+  static success(data, message = 'Success', statusCode = 200) {
+    return (req, res) => {
+      res.status(statusCode).json({
+        success: true,
+        message,
+        data,
+      });
+    };
   }
 
-  static created(res, data = null, message = 'Created') {
-    return this.success(res, data, message, 201);
+  static paginated(data, pagination, message = 'Success') {
+    return (req, res) => {
+      res.status(200).json({
+        success: true,
+        message,
+        data,
+        pagination,
+      });
+    };
   }
 }
 

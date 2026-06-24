@@ -1,9 +1,16 @@
-const ALLOWED_ORDERS = ['asc', 'desc'];
-
-const getSorting = (query, allowedFields = []) => {
-  const { sortBy, order = 'asc' } = query;
-  if (!sortBy || !allowedFields.includes(sortBy)) return undefined;
-  return { [sortBy]: ALLOWED_ORDERS.includes(order) ? order : 'asc' };
+// Allowed sort fields for each model (whitelist)
+const SORT_FIELDS = {
+  user: ['name', 'email', 'createdAt'],
+  store: ['name', 'email', 'address', 'createdAt'],
+  rating: ['createdAt'],
 };
 
-module.exports = { getSorting };
+const getSortOrder = (query, model) => {
+  const sortBy = query.sortBy || 'createdAt';
+  const sortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';
+  const allowedFields = SORT_FIELDS[model] || [];
+  const field = allowedFields.includes(sortBy) ? sortBy : 'createdAt';
+  return { [field]: sortOrder };
+};
+
+module.exports = { getSortOrder };

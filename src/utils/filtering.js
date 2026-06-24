@@ -1,11 +1,12 @@
-const buildFilter = (query, fields = []) => {
+// Builds Prisma where clause from query string filters
+const buildWhereClause = (query, allowedFields) => {
   const where = {};
-  fields.forEach((field) => {
+  for (const field of allowedFields) {
     if (query[field]) {
-      where[field] = { contains: query[field], mode: 'insensitive' };
+      where[field] = { contains: query[field] };
     }
-  });
+  }
   return where;
 };
 
-module.exports = { buildFilter };
+module.exports = { buildWhereClause };
