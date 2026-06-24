@@ -1,40 +1,70 @@
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const prisma = require('../../config/database');
-const { JWT_SECRET, JWT_EXPIRES_IN } = require('../../config/env');
+const { jwtSecret, jwtExpiresIn } = require('../../config/env');
 const AppError = require('../../utils/AppError');
 
-const generateToken = (user) =>
-  jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+const signup = async ({ name, email, password, address }) => {
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new AppError('Email already in use', 409);
+  }
 
-const signup = async (data) => {
-  const exists = await prisma.user.findUnique({ where: { email: data.email } });
-  if (exists) throw new AppError('Email already in use', 409);
-
-  const hashed = await bcrypt.hash(data.password, 10);
+  const hashedPassword = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
-    data: { ...data, password: hashed },
+    data: {
+      name,
+      email,
+      password: hashedPassword,
+      address,
+      role: 'USER', // normal user signup always creates USER role
+    },
     select: { id: true, name: true, email: true, role: true },
   });
-  return { user, token: generateToken(user) };
+
+  return user;
 };
 
-const login = async ({ email, password }) => {
+const login = async (email, password) => {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await bcrypt.compare(password, user.password)))
-    throw new AppError('Invalid credentials', 401);
+  if (!user) {
+    throw new AppError('Invalid email or password', 401);
+  }
 
-  const { password: _, ...safeUser } = user;
-  return { user: safeUser, token: generateToken(user) };
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    throw new AppError('Invalid email or password', 401);
+  }
+
+  const token = jwt.sign(
+      { id: user.id, role: user.role },
+      jwtSecret,
+      { expiresIn: jwtExpiresIn }
+  );
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    token,
+  };
 };
 
-const updatePassword = async (userId, { currentPassword, newPassword }) => {
+const updatePassword = async (userId, oldPassword, newPassword) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!(await bcrypt.compare(currentPassword, user.password)))
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) {
     throw new AppError('Current password is incorrect', 400);
+  }
 
-  const hashed = await bcrypt.hash(newPassword, 10);
-  await prisma.user.update({ where: { id: userId }, data: { password: hashed } });
+  const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: hashedNewPassword },
+  });
 };
 
 module.exports = { signup, login, updatePassword };
