@@ -1,15 +1,15 @@
 const userService = require('./user.service');
-const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../middleware/asyncHandler');
+const ApiResponse = require('../../utils/ApiResponse');
 
-const listUsers = asyncHandler(async (req, res) => {
-  const result = await userService.listUsers(req.query);
-  ApiResponse.success(res, result);
+const getUsers = asyncHandler(async (req, res) => {
+  const users = await userService.listUsers(req.query);
+  return ApiResponse.success(users)(req, res);
 });
 
-const getUserById = asyncHandler(async (req, res) => {
-  const user = await userService.getUserById(req.params.id);
-  ApiResponse.success(res, user);
+const getUser = asyncHandler(async (req, res) => {
+  const user = await userService.getUserDetails(parseInt(req.params.id, 10));
+  return ApiResponse.success(user)(req, res);
 });
 
-module.exports = { listUsers, getUserById };
+module.exports = { getUsers, getUser };
