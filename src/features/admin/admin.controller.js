@@ -1,13 +1,20 @@
 const adminService = require('./admin.service');
-const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../middleware/asyncHandler');
+const ApiResponse = require('../../utils/ApiResponse');
 
-const getDashboardStats = asyncHandler(async (req, res) => {
-  ApiResponse.success(res, await adminService.getDashboardStats());
+const getDashboard = asyncHandler(async (req, res) => {
+  const stats = await adminService.getDashboardStats();
+  return ApiResponse.success(stats)(req, res);
 });
 
-const createUser = asyncHandler(async (req, res) => {
-  ApiResponse.created(res, await adminService.createUser(req.body), 'User created');
+const addUser = asyncHandler(async (req, res) => {
+  const user = await adminService.createUser(req.body);
+  return ApiResponse.success(user, 'User created', 201)(req, res);
 });
 
-module.exports = { getDashboardStats, createUser };
+const addStore = asyncHandler(async (req, res) => {
+  const store = await adminService.createStore(req.body);
+  return ApiResponse.success(store, 'Store created', 201)(req, res);
+});
+
+module.exports = { getDashboard, addUser, addStore };
