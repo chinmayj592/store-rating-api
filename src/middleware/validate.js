@@ -11,7 +11,7 @@ const validate = (schema, property = 'body') => {
       const message = error.details.map((d) => d.message).join(', ');
       throw new AppError(message, 400);
     }
-    req[property] = value; // replace with sanitized values
+    req[property] = value;
     next();
   };
 };
